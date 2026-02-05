@@ -30,9 +30,20 @@ async def create_async_fhir_client(
     config: ServerConfigs,
     access_token: str | None = None,
     extra_headers: dict | None = None,
+    auth_type: str | None = None,
 ) -> AsyncFHIRClient:
-    """Create a FHIR AsyncClient with defaults."""
+    """
+    Create a FHIR AsyncClient with defaults.
 
+    Args:
+        config: Server configuration object
+        access_token: OAuth/Bearer access token (used for oauth/token auth types)
+        extra_headers: Additional HTTP headers to include
+        auth_type: Authentication type override. If None, uses config.effective_auth_type
+
+    Returns:
+        Configured AsyncFHIRClient instance
+    """
     client_kwargs: Dict = {
         "url": config.server_base_url,
         "aiohttp_config": {
@@ -40,8 +51,28 @@ async def create_async_fhir_client(
         },
         "extra_headers": extra_headers,
     }
-    if access_token:
-        client_kwargs["authorization"] = f"Bearer {access_token}"
+
+    # Determine which auth type to use
+    effective_auth = auth_type or config.effective_auth_type
+
+    # Set authorization header based on auth type
+    if effective_auth == "basic":
+        basic_auth = config.get_basic_auth_header()
+        if basic_auth:
+            client_kwargs["authorization"] = f"Basic {basic_auth}"
+            logger.debug("Using Basic authentication for FHIR client")
+        else:
+            logger.warning("Basic auth selected but credentials are missing")
+    elif effective_auth in ("oauth", "token"):
+        if access_token:
+            client_kwargs["authorization"] = f"Bearer {access_token}"
+            logger.debug(f"Using Bearer token authentication for FHIR client (type: {effective_auth})")
+        else:
+            logger.debug("No access token provided for Bearer authentication")
+    elif effective_auth == "none":
+        logger.debug("No authentication configured for FHIR client")
+    else:
+        logger.warning(f"Unknown authentication type: {effective_auth}")
 
     return AsyncFHIRClient(**client_kwargs)
 

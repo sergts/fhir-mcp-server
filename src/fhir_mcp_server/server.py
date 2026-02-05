@@ -87,22 +87,32 @@ async def get_user_access_token() -> OAuthToken | None:
 
 async def get_async_fhir_client() -> AsyncFHIRClient:
     """
-    Get an async FHIR client with the user's access token.
-    Returns an AsyncFHIRClient instance.
+    Get an async FHIR client with appropriate authentication.
+    Returns an AsyncFHIRClient instance configured based on the auth type.
     """
     client_kwargs: Dict = {
         "config": configs,
         "extra_headers": get_default_headers(),
     }
 
-    user_token: OAuthToken | None = await get_user_access_token()
-    disable_auth: bool = configs.server_disable_authorization
-    if not user_token:
-        if not disable_auth:
-            logger.error("User is not authenticated.")
+    auth_type = configs.effective_auth_type
+
+    # Handle different authentication types
+    if auth_type == "basic":
+        # Basic auth credentials are handled directly in create_async_fhir_client
+        logger.debug("Using basic authentication for FHIR client")
+    elif auth_type in ("oauth", "token"):
+        # Get OAuth/Bearer token
+        user_token: OAuthToken | None = await get_user_access_token()
+        if not user_token:
+            logger.error("User is not authenticated with OAuth/token.")
             raise ValueError("User is not authenticated.")
-    else:
         client_kwargs["access_token"] = user_token.access_token
+    elif auth_type == "none":
+        # No authentication required
+        logger.debug("No authentication configured for FHIR client")
+    else:
+        logger.warning(f"Unknown authentication type: {auth_type}")
 
     return await create_async_fhir_client(**client_kwargs)
 

@@ -82,14 +82,116 @@ class TestCreateAsyncFhirClient:
     async def test_create_client_with_custom_timeout(self):
         """Test creating FHIR client with custom timeout."""
         config = ServerConfigs(server_base_url="https://example.fhir.org/R4", mcp_request_timeout=60)
-        
+
         with patch('fhir_mcp_server.utils.AsyncFHIRClient') as mock_client, \
              patch('fhir_mcp_server.utils.aiohttp.ClientTimeout') as mock_timeout:
-            
+
             await create_async_fhir_client(config)
-            
+
             # Verify timeout was set correctly
             mock_timeout.assert_called_once_with(total=60)
+
+    @pytest.mark.asyncio
+    async def test_create_client_with_basic_auth(self):
+        """Test creating FHIR client with basic authentication."""
+        config = ServerConfigs(
+            server_base_url="https://example.fhir.org/R4",
+            server_auth_type="basic",
+            server_username="testuser",
+            server_password="testpass",
+            _env_file=None
+        )
+
+        with patch('fhir_mcp_server.utils.AsyncFHIRClient') as mock_client:
+            await create_async_fhir_client(config)
+
+            call_args = mock_client.call_args[1]
+            # testuser:testpass in base64 is dGVzdHVzZXI6dGVzdHBhc3M=
+            assert call_args["authorization"] == "Basic dGVzdHVzZXI6dGVzdHBhc3M="
+
+    @pytest.mark.asyncio
+    async def test_create_client_with_basic_auth_missing_credentials(self):
+        """Test creating FHIR client with basic auth but missing credentials."""
+        config = ServerConfigs(
+            server_base_url="https://example.fhir.org/R4",
+            server_auth_type="basic",
+            _env_file=None
+        )
+
+        with patch('fhir_mcp_server.utils.AsyncFHIRClient') as mock_client:
+            await create_async_fhir_client(config)
+
+            call_args = mock_client.call_args[1]
+            # Should not have authorization header if credentials are missing
+            assert "authorization" not in call_args
+
+    @pytest.mark.asyncio
+    async def test_create_client_with_auth_type_override(self):
+        """Test creating FHIR client with auth_type override."""
+        config = ServerConfigs(
+            server_base_url="https://example.fhir.org/R4",
+            server_auth_type="oauth",
+            server_username="testuser",
+            server_password="testpass",
+            _env_file=None
+        )
+
+        with patch('fhir_mcp_server.utils.AsyncFHIRClient') as mock_client:
+            # Override to use basic auth
+            await create_async_fhir_client(config, auth_type="basic")
+
+            call_args = mock_client.call_args[1]
+            assert call_args["authorization"] == "Basic dGVzdHVzZXI6dGVzdHBhc3M="
+
+    @pytest.mark.asyncio
+    async def test_create_client_with_token_auth(self):
+        """Test creating FHIR client with token authentication."""
+        config = ServerConfigs(
+            server_base_url="https://example.fhir.org/R4",
+            server_auth_type="token",
+            _env_file=None
+        )
+        access_token = "test_token_123"
+
+        with patch('fhir_mcp_server.utils.AsyncFHIRClient') as mock_client:
+            await create_async_fhir_client(config, access_token=access_token)
+
+            call_args = mock_client.call_args[1]
+            assert call_args["authorization"] == "Bearer test_token_123"
+
+    @pytest.mark.asyncio
+    async def test_create_client_with_no_auth(self):
+        """Test creating FHIR client with no authentication."""
+        config = ServerConfigs(
+            server_base_url="https://example.fhir.org/R4",
+            server_auth_type="none",
+            _env_file=None
+        )
+
+        with patch('fhir_mcp_server.utils.AsyncFHIRClient') as mock_client:
+            await create_async_fhir_client(config)
+
+            call_args = mock_client.call_args[1]
+            assert "authorization" not in call_args
+
+    @pytest.mark.asyncio
+    async def test_create_client_with_disabled_auth(self):
+        """Test creating FHIR client with disabled authorization."""
+        config = ServerConfigs(
+            server_base_url="https://example.fhir.org/R4",
+            server_auth_type="basic",
+            server_disable_authorization=True,
+            server_username="testuser",
+            server_password="testpass",
+            _env_file=None
+        )
+
+        with patch('fhir_mcp_server.utils.AsyncFHIRClient') as mock_client:
+            await create_async_fhir_client(config)
+
+            call_args = mock_client.call_args[1]
+            # Should not have authorization header when disabled
+            assert "authorization" not in call_args
 
 
 class TestGetBundleEntries:

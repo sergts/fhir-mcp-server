@@ -72,25 +72,33 @@ You can use the FHIR MCP Server by installing our Python package, or by cloning 
 ### Installing using PyPI Package
 
 1. **Configure Environment Variables:**
-    
+
     To run the server, you must set `FHIR_SERVER_BASE_URL`.
 
-    * **To enable authorization:** Set `FHIR_SERVER_BASE_URL`, `FHIR_SERVER_CLIENT_ID`, `FHIR_SERVER_CLIENT_SECRET`, and `FHIR_SERVER_SCOPES`. Authorization is enabled by default.
-    * **To disable authorization:** Set `FHIR_SERVER_DISABLE_AUTHORIZATION` to `True`.
+    The server supports multiple authentication methods:
+    * **OAuth Authentication (default):** Set `FHIR_SERVER_CLIENT_ID`, `FHIR_SERVER_CLIENT_SECRET`, and `FHIR_SERVER_SCOPES`.
+    * **Basic Authentication:** Set `FHIR_SERVER_AUTH_TYPE=basic`, `FHIR_SERVER_USERNAME`, and `FHIR_SERVER_PASSWORD`.
+    * **Token Authentication:** Set `FHIR_SERVER_AUTH_TYPE=token` and `FHIR_SERVER_ACCESS_TOKEN`.
+    * **No Authentication:** Set `FHIR_SERVER_DISABLE_AUTHORIZATION=True`.
 
     By default, the MCP server runs on **[http://localhost:8000](http://localhost:8000)**, and you can customize the host and port using `FHIR_MCP_HOST` and `FHIR_MCP_PORT`.
 
-
     You can set these by exporting them as environment variables like below or by creating a `.env` file (referencing `.env.example`).
 
-    ```bash 
-    export FHIR_SERVER_BASE_URL=""
-    export FHIR_SERVER_CLIENT_ID=""
-    export FHIR_SERVER_CLIENT_SECRET=""
-    export FHIR_SERVER_SCOPES=""
+    **Example: OAuth Authentication (default)**
+    ```bash
+    export FHIR_SERVER_BASE_URL="https://your-fhir-server.com/fhir"
+    export FHIR_SERVER_CLIENT_ID="your-client-id"
+    export FHIR_SERVER_CLIENT_SECRET="your-client-secret"
+    export FHIR_SERVER_SCOPES="fhirUser openid"
+    ```
 
-    export FHIR_MCP_HOST="localhost"
-    export FHIR_MCP_PORT="8000"
+    **Example: Basic Authentication**
+    ```bash
+    export FHIR_SERVER_BASE_URL="https://your-fhir-server.com/fhir"
+    export FHIR_SERVER_AUTH_TYPE="basic"
+    export FHIR_SERVER_USERNAME="your-username"
+    export FHIR_SERVER_PASSWORD="your-password"
     ```
 
 2. **Install the PyPI package and run the server**
@@ -401,15 +409,27 @@ uv run fhir-mcp-server --help
 - `FHIR_MCP_SERVER_URL`: If set, this value will be used as the server's base URL instead of generating it from host and port. Useful for custom URL configurations or when behind a proxy.
 - `FHIR_MCP_REQUEST_TIMEOUT`: Timeout duration in seconds for requests from the MCP server to the FHIR server (default: `30`).
 
-**MCP Server OAuth2 with FHIR server Configuration (MCP Client ↔ MCP Server):**
-These variables configure the MCP client's secure connection to the MCP server, using the OAuth2 authorization code grant flow with a FHIR server.
+**FHIR Server Authentication Configuration:**
 
-- `FHIR_SERVER_CLIENT_ID`: The OAuth2 client ID used to authorize MCP clients with the FHIR server.
-- `FHIR_SERVER_DISABLE_AUTHORIZATION`: If set to `True`, disables authorization checks on the MCP server, allowing connections to publicly accessible FHIR servers.
-- `FHIR_SERVER_CLIENT_SECRET`: The client secret corresponding to the FHIR client ID. Used during token exchange.
+The MCP server supports multiple authentication methods for connecting to FHIR servers. Configure authentication using these variables:
+
 - `FHIR_SERVER_BASE_URL`: The base URL of the FHIR server (e.g., `https://hapi.fhir.org/baseR4`). This is used to generate tool URIs and to route FHIR requests.
+- `FHIR_SERVER_AUTH_TYPE`: Specifies the authentication method to use. Options: `oauth` (default), `basic`, `token`, or `none`.
+- `FHIR_SERVER_DISABLE_AUTHORIZATION`: If set to `True`, disables all authorization checks on the MCP server (overrides `FHIR_SERVER_AUTH_TYPE`), allowing connections to publicly accessible FHIR servers.
+
+**OAuth Authentication (AUTH_TYPE=oauth or default):**
+- `FHIR_SERVER_CLIENT_ID`: The OAuth2 client ID used to authorize MCP clients with the FHIR server.
+- `FHIR_SERVER_CLIENT_SECRET`: The client secret corresponding to the FHIR client ID. Used during token exchange.
 - `FHIR_SERVER_SCOPES`: A space-separated list of OAuth2 scopes to request from the FHIR authorization server (e.g., `user/Patient.read user/Observation.read`). Add `fhirUser openid` to enable retrieval of user context for the `get_user` tool. If these two scopes are not configured, the `get_user` tool returns an empty result because the ID token lacks the user's FHIR resource reference.
-- `FHIR_SERVER_ACCESS_TOKEN`: The access token to use for authenticating requests to the FHIR server. If this variable is set, the server will bypass the OAuth2 authorization flow and use this token directly for all requests.
+
+**Basic Authentication (AUTH_TYPE=basic):**
+- `FHIR_SERVER_USERNAME`: Username for HTTP Basic Authentication.
+- `FHIR_SERVER_PASSWORD`: Password for HTTP Basic Authentication.
+
+**Note:** Basic authentication transmits credentials in base64 encoding (not encryption). Always use HTTPS connections to FHIR servers when using basic authentication to ensure credentials are encrypted in transit.
+
+**Token Authentication (AUTH_TYPE=token):**
+- `FHIR_SERVER_ACCESS_TOKEN`: A pre-obtained access token to use for authenticating requests to the FHIR server. The server will bypass the OAuth2 authorization flow and use this token directly for all requests.
 
 ## Tools
 

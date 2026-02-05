@@ -18,8 +18,8 @@ import base64
 import json
 import logging
 
-from typing import Any, Dict
-from pydantic import AnyHttpUrl, BaseModel
+from typing import Any, Dict, Literal
+from pydantic import AnyHttpUrl, BaseModel, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
@@ -50,6 +50,11 @@ class ServerConfigs(BaseSettings):
     server_access_token: str | None = None
     server_disable_authorization: bool = False
 
+    # Authentication settings
+    server_auth_type: Literal["oauth", "basic", "token", "none"] = "oauth"
+    server_username: str = ""
+    server_password: str = ""
+
     def callback_url(
         self, server_url: str, suffix: str = "/oauth/callback"
     ) -> AnyHttpUrl:
@@ -78,9 +83,61 @@ class ServerConfigs(BaseSettings):
     def effective_server_url(self) -> str:
         return self.mcp_server_url or f"http://{self.mcp_host}:{self.mcp_port}"
 
+    @property
+    def effective_auth_type(self) -> str:
+        """
+        Determine the effective authentication type based on configuration.
+        Priority: disable_authorization > auth_type setting
+        """
+        if self.server_disable_authorization:
+            return "none"
+        return self.server_auth_type
+
+    def get_basic_auth_header(self) -> str | None:
+        """
+        Generate the Basic Authentication header value.
+
+        Returns:
+            Base64 encoded 'username:password' string, or None if credentials are missing.
+        """
+        if not self.server_username or not self.server_password:
+            logger.warning("Basic auth credentials are incomplete.")
+            return None
+
+        credentials = f"{self.server_username}:{self.server_password}"
+        encoded = base64.b64encode(credentials.encode('utf-8')).decode('utf-8')
+        return encoded
+
+    @field_validator('server_auth_type')
+    @classmethod
+    def validate_auth_type(cls, v: str, info) -> str:
+        """Validate auth_type and log warnings for missing credentials."""
+        # Note: info.data may not have all fields yet during validation
+        # We'll do comprehensive validation in __init__
+        return v
+
     def __init__(self, **data):
         """Initialize settings with values from environment variables"""
         super().__init__(**data)
+
+        # Validate configuration based on auth type
+        if self.effective_auth_type == "basic":
+            if not self.server_username or not self.server_password:
+                logger.warning(
+                    "Basic authentication is selected but username or password is missing. "
+                    "Set FHIR_SERVER_USERNAME and FHIR_SERVER_PASSWORD environment variables."
+                )
+        elif self.effective_auth_type == "token":
+            if not self.server_access_token:
+                logger.warning(
+                    "Token authentication is selected but FHIR_SERVER_ACCESS_TOKEN is not set."
+                )
+        elif self.effective_auth_type == "oauth":
+            if not self.server_client_id or not self.server_client_secret:
+                logger.warning(
+                    "OAuth authentication is selected but client credentials are incomplete. "
+                    "Set FHIR_SERVER_CLIENT_ID and FHIR_SERVER_CLIENT_SECRET environment variables."
+                )
 
 
 class OAuthMetadata(BaseModel):
