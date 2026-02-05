@@ -55,6 +55,9 @@ class ServerConfigs(BaseSettings):
     server_username: str = ""
     server_password: str = ""
 
+    # Read-only mode
+    server_read_only: bool = False
+
     def callback_url(
         self, server_url: str, suffix: str = "/oauth/callback"
     ) -> AnyHttpUrl:

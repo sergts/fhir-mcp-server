@@ -379,3 +379,39 @@ class TestBasicAuthentication:
             import base64
             decoded = base64.b64decode(header).decode('utf-8')
             assert decoded == "user@example.com:p@ss:w0rd!"
+
+
+class TestReadOnlyMode:
+    """Test the read-only mode configuration."""
+
+    def test_read_only_default_false(self):
+        """Test that read-only mode is disabled by default."""
+        with patch.dict(os.environ, {}, clear=True):
+            config = ServerConfigs(_env_file=None)
+            assert config.server_read_only is False
+
+    def test_read_only_enabled(self):
+        """Test enabling read-only mode."""
+        with patch.dict(os.environ, {"FHIR_SERVER_READ_ONLY": "True"}, clear=True):
+            config = ServerConfigs(_env_file=None)
+            assert config.server_read_only is True
+
+    def test_read_only_disabled_explicitly(self):
+        """Test explicitly disabling read-only mode."""
+        with patch.dict(os.environ, {"FHIR_SERVER_READ_ONLY": "False"}, clear=True):
+            config = ServerConfigs(_env_file=None)
+            assert config.server_read_only is False
+
+    def test_read_only_with_various_values(self):
+        """Test read-only mode with various boolean string values."""
+        # Test truthy values
+        for value in ["true", "TRUE", "1", "yes", "YES"]:
+            with patch.dict(os.environ, {"FHIR_SERVER_READ_ONLY": value}, clear=True):
+                config = ServerConfigs(_env_file=None)
+                assert config.server_read_only is True, f"Failed for value: {value}"
+
+        # Test falsy values
+        for value in ["false", "FALSE", "0", "no", "NO"]:
+            with patch.dict(os.environ, {"FHIR_SERVER_READ_ONLY": value}, clear=True):
+                config = ServerConfigs(_env_file=None)
+                assert config.server_read_only is False, f"Failed for value: {value}"

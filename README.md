@@ -408,6 +408,7 @@ uv run fhir-mcp-server --help
 - `FHIR_MCP_PORT`: The port on which the MCP server will listen for incoming client requests (e.g., `8000`).
 - `FHIR_MCP_SERVER_URL`: If set, this value will be used as the server's base URL instead of generating it from host and port. Useful for custom URL configurations or when behind a proxy.
 - `FHIR_MCP_REQUEST_TIMEOUT`: Timeout duration in seconds for requests from the MCP server to the FHIR server (default: `30`).
+- `FHIR_SERVER_READ_ONLY`: If set to `True`, enables read-only mode which prevents all create, update, and delete operations. Only read and search operations are allowed (default: `False`).
 
 **FHIR Server Authentication Configuration:**
 

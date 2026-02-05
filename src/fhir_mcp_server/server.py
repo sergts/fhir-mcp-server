@@ -476,6 +476,17 @@ def register_mcp_tools(mcp: FastMCP) -> None:
             logger.debug(
                 f"Invoked with type='{type}', payload={payload}, searchParam={searchParam}, and operation={operation}"
             )
+
+            # Check if server is in read-only mode
+            if configs.server_read_only:
+                logger.warning(
+                    f"Create operation blocked: server is in read-only mode."
+                )
+                return await get_operation_outcome(
+                    code="forbidden",
+                    diagnostics="Create operations are not allowed. The server is in read-only mode.",
+                )
+
             if not type:
                 logger.error(
                     "Unable to perform create operation: 'type' is a mandatory field."
@@ -571,6 +582,17 @@ def register_mcp_tools(mcp: FastMCP) -> None:
             logger.debug(
                 f"Invoked with type='{type}', id={id}, payload={payload}, searchParam={searchParam}, and operation={operation}"
             )
+
+            # Check if server is in read-only mode
+            if configs.server_read_only:
+                logger.warning(
+                    f"Update operation blocked: server is in read-only mode."
+                )
+                return await get_operation_outcome(
+                    code="forbidden",
+                    diagnostics="Update operations are not allowed. The server is in read-only mode.",
+                )
+
             if not type:
                 logger.error(
                     "Unable to perform update operation: 'type' is a mandatory field."
@@ -660,6 +682,17 @@ def register_mcp_tools(mcp: FastMCP) -> None:
             logger.debug(
                 f"Invoked with type='{type}', id={id}, searchParam={searchParam}, and operation={operation}"
             )
+
+            # Check if server is in read-only mode
+            if configs.server_read_only:
+                logger.warning(
+                    f"Delete operation blocked: server is in read-only mode."
+                )
+                return await get_operation_outcome(
+                    code="forbidden",
+                    diagnostics="Delete operations are not allowed. The server is in read-only mode.",
+                )
+
             if not type:
                 logger.error(
                     "Unable to perform delete operation: 'type' is a mandatory field."
