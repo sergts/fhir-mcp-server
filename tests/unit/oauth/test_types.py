@@ -261,3 +261,121 @@ class TestAuthorizationCode:
                 # Missing required fields
                 code="test_code"
             ) # type: ignore
+
+
+
+class TestBasicAuthentication:
+    """Test basic authentication functionality in ServerConfigs."""
+
+    def test_basic_auth_type_default(self):
+        """Test that default auth type is oauth."""
+        with patch.dict(os.environ, {}, clear=True):
+            config = ServerConfigs(_env_file=None)
+            assert config.server_auth_type == "oauth"
+
+    def test_basic_auth_type_setting(self):
+        """Test setting auth type to basic."""
+        with patch.dict(os.environ, {}, clear=True):
+            config = ServerConfigs(server_auth_type="basic", _env_file=None)
+            assert config.server_auth_type == "basic"
+
+    def test_basic_auth_credentials(self):
+        """Test basic auth username and password."""
+        with patch.dict(os.environ, {}, clear=True):
+            config = ServerConfigs(
+                server_auth_type="basic",
+                server_username="testuser",
+                server_password="testpass",
+                _env_file=None
+            )
+            assert config.server_username == "testuser"
+            assert config.server_password == "testpass"
+
+    def test_get_basic_auth_header(self):
+        """Test basic auth header generation."""
+        with patch.dict(os.environ, {}, clear=True):
+            config = ServerConfigs(
+                server_username="testuser",
+                server_password="testpass",
+                _env_file=None
+            )
+            header = config.get_basic_auth_header()
+            assert header is not None
+            # testuser:testpass in base64 is dGVzdHVzZXI6dGVzdHBhc3M=
+            assert header == "dGVzdHVzZXI6dGVzdHBhc3M="
+
+    def test_get_basic_auth_header_missing_username(self):
+        """Test basic auth header with missing username."""
+        with patch.dict(os.environ, {}, clear=True):
+            config = ServerConfigs(
+                server_password="testpass",
+                _env_file=None
+            )
+            header = config.get_basic_auth_header()
+            assert header is None
+
+    def test_get_basic_auth_header_missing_password(self):
+        """Test basic auth header with missing password."""
+        with patch.dict(os.environ, {}, clear=True):
+            config = ServerConfigs(
+                server_username="testuser",
+                _env_file=None
+            )
+            header = config.get_basic_auth_header()
+            assert header is None
+
+    def test_get_basic_auth_header_empty_credentials(self):
+        """Test basic auth header with empty credentials."""
+        with patch.dict(os.environ, {}, clear=True):
+            config = ServerConfigs(_env_file=None)
+            header = config.get_basic_auth_header()
+            assert header is None
+
+    def test_effective_auth_type_oauth(self):
+        """Test effective auth type with oauth."""
+        with patch.dict(os.environ, {}, clear=True):
+            config = ServerConfigs(server_auth_type="oauth", _env_file=None)
+            assert config.effective_auth_type == "oauth"
+
+    def test_effective_auth_type_basic(self):
+        """Test effective auth type with basic."""
+        with patch.dict(os.environ, {}, clear=True):
+            config = ServerConfigs(server_auth_type="basic", _env_file=None)
+            assert config.effective_auth_type == "basic"
+
+    def test_effective_auth_type_token(self):
+        """Test effective auth type with token."""
+        with patch.dict(os.environ, {}, clear=True):
+            config = ServerConfigs(server_auth_type="token", _env_file=None)
+            assert config.effective_auth_type == "token"
+
+    def test_effective_auth_type_none(self):
+        """Test effective auth type with none."""
+        with patch.dict(os.environ, {}, clear=True):
+            config = ServerConfigs(server_auth_type="none", _env_file=None)
+            assert config.effective_auth_type == "none"
+
+    def test_effective_auth_type_disabled_overrides(self):
+        """Test that disable_authorization overrides auth_type."""
+        with patch.dict(os.environ, {}, clear=True):
+            config = ServerConfigs(
+                server_auth_type="basic",
+                server_disable_authorization=True,
+                _env_file=None
+            )
+            assert config.effective_auth_type == "none"
+
+    def test_basic_auth_with_special_characters(self):
+        """Test basic auth header with special characters in credentials."""
+        with patch.dict(os.environ, {}, clear=True):
+            config = ServerConfigs(
+                server_username="user@example.com",
+                server_password="p@ss:w0rd!",
+                _env_file=None
+            )
+            header = config.get_basic_auth_header()
+            assert header is not None
+            # Verify it's valid base64
+            import base64
+            decoded = base64.b64decode(header).decode('utf-8')
+            assert decoded == "user@example.com:p@ss:w0rd!"
